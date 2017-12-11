@@ -14,7 +14,7 @@ ext.libraries = [
         awaitility     : 'com.jayway.awaitility:awaitility:1.+',
         guava          : 'com.google.guava:guava:23.+',
         hamcrest       : 'org.hamcrest:java-hamcrest:2.+',
-        logback_classic: 'ch.qos.logback:logback-classic:+',
+        logback_classic: 'ch.qos.logback:logback-classic:1.+',
         testng         : 'org.testng:testng:6.+'
 ]
 

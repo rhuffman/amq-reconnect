@@ -29,6 +29,10 @@ public class ReconnectionTest {
 
   private PooledConnectionFactory factory;
 
+  private Connection consumerConnection;
+
+  private Connection producerConnection;
+
   @BeforeClass
   public void createBroker() throws Exception {
     dataDir = Files.createTempDir();
@@ -46,11 +50,17 @@ public class ReconnectionTest {
   public void beforeMethod() throws Exception {
     startBroker();
     factory = new PooledConnectionFactory(connectionUri);
-    //factory.start();
+    factory.start();
+    consumerConnection = factory.createConnection();
+    consumerConnection.start();
+    producerConnection = factory.createConnection();
+    producerConnection.start();
   }
 
   @AfterMethod
   public void afterMethod() throws Exception {
+    closeQuietly(producerConnection);
+    closeQuietly(consumerConnection);
     factory.stop();
     stopBroker();
   }
@@ -86,56 +96,30 @@ public class ReconnectionTest {
   }
 
   @Test
-  public void testSubscribeAndPublish() throws JMSException {
+  public void testPublishAndReceive() throws JMSException {
     String queue = "foo";
-    MessageConsumer consumer = createConsumer(factory, queue);
-    TextMessage published = publish(factory, queue, "message 1");
-    TextMessage received = TextMessage.class.cast(consumer.receive(10000));
+    MessageConsumer consumer = createConsumer(queue);
+    TextMessage published = publish(queue, "message 1");
+    TextMessage received = TextMessage.class.cast(consumer.receive(1000));
     assertNotNull(received);
     assertThat(received.getText(), equalTo(published.getText()));
   }
 
-  private TextMessage publish(ConnectionFactory factory, String queue, String message) throws JMSException {
-    Connection connection = factory.createConnection();
-    connection.start();
-    Session session = null;
+  private TextMessage publish(String queue, String message) throws JMSException {
+    Session session = producerConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     try {
-      session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-      session.recover();
       TextMessage msg = session.createTextMessage(message);
       MessageProducer producer = session.createProducer(session.createQueue(queue));
       producer.send(msg);
       return msg;
     } finally {
       closeQuietly(session);
-      closeQuietly(connection);
     }
   }
 
-  private MessageConsumer createConsumer(ConnectionFactory factory, String queue) throws JMSException {
-    Connection connection = factory.createConnection();
-    connection.start();
-    Session session = null;
-    try {
-      session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-      return session.createConsumer(session.createQueue(queue));
-    } catch (JMSException | RuntimeException e) {
-      closeQuietly(connection);
-      closeQuietly(session);
-      closeQuietly(connection);
-      throw e;
-    }
-  }
-
-  private void stopQuietly(Connection connection) {
-    try {
-      if (connection != null) {
-        connection.stop();
-        connection.close();
-      }
-    } catch (JMSException e) {
-      System.out.println("Error closing connection: " + e.getMessage());
-    }
+  private MessageConsumer createConsumer(String queue) throws JMSException {
+    Session session = consumerConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    return session.createConsumer(session.createQueue(queue));
   }
 
   private void closeQuietly(@Nullable Session session) {
