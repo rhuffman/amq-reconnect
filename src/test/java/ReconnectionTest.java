@@ -47,20 +47,13 @@ public class ReconnectionTest {
   public void beforeMethod() throws Exception {
     dataDir = Files.createTempDir();
     startBroker();
-    factory = new PooledConnectionFactory(connectionUri);
-    factory.setExpiryTimeout(1000);
-    factory.setReconnectOnException(true);
-    factory.start();
-    consumerConnection = factory.createConnection();
-    consumerConnection.start();
-    producerConnection = factory.createConnection();
-    producerConnection.start();
+    createConnectionFactory();
+    createConnections();
   }
 
   @AfterMethod
   public void afterMethod() throws Exception {
-    closeQuietly(producerConnection);
-    closeQuietly(consumerConnection);
+    closeConnections();
     factory.stop();
     stopBroker();
     MoreFiles.deleteRecursively(dataDir.toPath());
@@ -83,7 +76,6 @@ public class ReconnectionTest {
     MessageConsumer consumer = createConsumer(queue);
     TextMessage published1 = publish(queue, "message 1");
     TextMessage received1 = TextMessage.class.cast(consumer.receive(1000));
-    received1.acknowledge();
 
     assertNotNull(received1);
     assertThat(received1.getText(), equalTo(published1.getText()));
@@ -95,7 +87,6 @@ public class ReconnectionTest {
 
     TextMessage published2 = publish(queue, "message 2");
     TextMessage received2 = TextMessage.class.cast(consumer.receive(1000));
-    received2.acknowledge();
 
     assertNotNull(received2);
     assertThat(received2.getText(), equalTo(published2.getText()));
@@ -161,6 +152,25 @@ public class ReconnectionTest {
       broker.stop();
       broker = null;
     }
+  }
+
+  private void createConnectionFactory() {
+    factory = new PooledConnectionFactory(connectionUri);
+    factory.setExpiryTimeout(1000);
+    factory.setReconnectOnException(true);
+    factory.start();
+  }
+
+  private void createConnections() throws JMSException {
+    consumerConnection = factory.createConnection();
+    consumerConnection.start();
+    producerConnection = factory.createConnection();
+    producerConnection.start();
+  }
+
+  private void closeConnections() {
+    closeQuietly(producerConnection);
+    closeQuietly(consumerConnection);
   }
 
 }
