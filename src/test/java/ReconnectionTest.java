@@ -4,7 +4,9 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.TransportConnector;
 import org.apache.activemq.pool.PooledConnectionFactory;
 import org.apache.activemq.usage.SystemUsage;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import javax.annotation.Nullable;
 import javax.jms.*;
@@ -12,16 +14,21 @@ import java.io.File;
 import java.net.URI;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.testng.Assert.assertNotNull;
 
 public class ReconnectionTest {
 
-  private String baseUri;
+  private static final String baseUri = "tcp://localhost:60606?persistence=true";
 
-  private String connectionUri;
+  private static final String connectionUri = "failover:(tcp://localhost:60606)"
+      + "?initialReconnectDelay=100"
+      + "&maxReconnectAttempts=100"
+      + "&useExponentialBackOff=false"
+      + "&maxReconnectDelay=10"
+      + "&trackMessages=true"
+      + "&warnAfterReconnectAttempts=10";
 
   private BrokerService broker;
 
@@ -33,23 +40,14 @@ public class ReconnectionTest {
 
   private Connection producerConnection;
 
-  @BeforeClass
-  public void createBroker() throws Exception {
-    dataDir = Files.createTempDir();
-    baseUri = "tcp://localhost:60606?persistence=true";
-    connectionUri = "failover:(tcp://localhost:60606)"
-        + "?initialReconnectDelay=10"
-        + "&maxReconnectAttempts=200000"
-        + "&useExponentialBackOff=false"
-        + "&maxReconnectDelay=10"
-        + "&trackMessages=true"
-        + "&warnAfterReconnectAttempts=10";
-  }
 
   @BeforeMethod
   public void beforeMethod() throws Exception {
+    dataDir = Files.createTempDir();
     startBroker();
     factory = new PooledConnectionFactory(connectionUri);
+    factory.setExpiryTimeout(1000);
+    factory.setReconnectOnException(true);
     factory.start();
     consumerConnection = factory.createConnection();
     consumerConnection.start();
@@ -63,36 +61,7 @@ public class ReconnectionTest {
     closeQuietly(consumerConnection);
     factory.stop();
     stopBroker();
-  }
-
-  private void startBroker() throws Exception {
-    checkState(broker == null || broker.isStopped());
-
-    broker = new BrokerService();
-
-    // Set limits to avoid warnings since I don't have enough resources
-    // to cover the default values.
-    SystemUsage systemUsage = broker.getSystemUsage();
-    systemUsage.getMemoryUsage().setLimit(500000000);
-    systemUsage.getTempUsage().setLimit(500000000);
-
-    TransportConnector connector = new TransportConnector();
-    connector.setUri(new URI(baseUri));
-    broker.addConnector(connector);
-    broker.setDataDirectory(dataDir.getCanonicalPath());
-    broker.start();
-  }
-
-  private void stopBroker() throws Exception {
-    if (broker != null) {
-      broker.stop();
-      broker = null;
-    }
-  }
-
-  @AfterClass
-  public void afterClass() throws Exception {
-    MoreFiles.deleteRecursively(dataDir.toPath(), ALLOW_INSECURE);
+    MoreFiles.deleteRecursively(dataDir.toPath());
   }
 
   @Test
@@ -101,8 +70,30 @@ public class ReconnectionTest {
     MessageConsumer consumer = createConsumer(queue);
     TextMessage published = publish(queue, "message 1");
     TextMessage received = TextMessage.class.cast(consumer.receive(1000));
+
     assertNotNull(received);
     assertThat(received.getText(), equalTo(published.getText()));
+  }
+
+  @Test
+  public void testPublishAndRecieveAfterDisconnect() throws Exception {
+    String queue = "foo";
+    MessageConsumer consumer = createConsumer(queue);
+    TextMessage published1 = publish(queue, "message 1");
+    TextMessage received1 = TextMessage.class.cast(consumer.receive(1000));
+
+    broker.stop();
+    broker.start();
+
+    TextMessage published2 = publish(queue, "message 2");
+    TextMessage received2 = TextMessage.class.cast(consumer.receive(1000));
+
+    assertNotNull(received1);
+    assertThat(received1.getText(), equalTo(published1.getText()));
+
+    assertNotNull(received2);
+    assertThat(received1.getText(), equalTo(published2.getText()));
+
   }
 
   private TextMessage publish(String queue, String message) throws JMSException {
@@ -139,6 +130,31 @@ public class ReconnectionTest {
       }
     } catch (JMSException e) {
       System.out.println("Error closing connection: " + e.getMessage());
+    }
+  }
+
+  private void startBroker() throws Exception {
+    checkState(broker == null || broker.isStopped());
+
+    broker = new BrokerService();
+
+    // Set limits to avoid warnings since I don't have enough resources
+    // to cover the default values.
+    SystemUsage systemUsage = broker.getSystemUsage();
+    systemUsage.getMemoryUsage().setLimit(500000000);
+    systemUsage.getTempUsage().setLimit(500000000);
+
+    TransportConnector connector = new TransportConnector();
+    connector.setUri(new URI(baseUri));
+    broker.addConnector(connector);
+    broker.setDataDirectory(dataDir.getCanonicalPath());
+    broker.start();
+  }
+
+  private void stopBroker() throws Exception {
+    if (broker != null) {
+      broker.stop();
+      broker = null;
     }
   }
 
