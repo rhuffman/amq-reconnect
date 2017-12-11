@@ -25,4 +25,7 @@ hs_err_pid*
 .gradle
 
 # Intellij: use ./gradlew idea to build the project
-.idea
+*.ipr
+*.iws
+*.iml
+
