@@ -83,20 +83,22 @@ public class ReconnectionTest {
     MessageConsumer consumer = createConsumer(queue);
     TextMessage published1 = publish(queue, "message 1");
     TextMessage received1 = TextMessage.class.cast(consumer.receive(1000));
+    received1.acknowledge();
 
-    broker.stop();
-    broker.start();
+    assertNotNull(received1);
+    assertThat(received1.getText(), equalTo(published1.getText()));
+
+    stopBroker();
+    startBroker();
 
     await().atMost(10, TimeUnit.SECONDS).until(() -> broker.isStarted());
 
     TextMessage published2 = publish(queue, "message 2");
     TextMessage received2 = TextMessage.class.cast(consumer.receive(1000));
-
-    assertNotNull(received1);
-    assertThat(received1.getText(), equalTo(published1.getText()));
+    received2.acknowledge();
 
     assertNotNull(received2);
-    assertThat(received1.getText(), equalTo(published2.getText()));
+    assertThat(received2.getText(), equalTo(published2.getText()));
   }
 
   private TextMessage publish(String queue, String message) throws JMSException {
