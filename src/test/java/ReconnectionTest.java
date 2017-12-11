@@ -12,8 +12,10 @@ import javax.annotation.Nullable;
 import javax.jms.*;
 import java.io.File;
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.jayway.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.testng.Assert.assertNotNull;
@@ -85,6 +87,8 @@ public class ReconnectionTest {
     broker.stop();
     broker.start();
 
+    await().atMost(10, TimeUnit.SECONDS).until(() -> broker.isStarted());
+
     TextMessage published2 = publish(queue, "message 2");
     TextMessage received2 = TextMessage.class.cast(consumer.receive(1000));
 
@@ -93,7 +97,6 @@ public class ReconnectionTest {
 
     assertNotNull(received2);
     assertThat(received1.getText(), equalTo(published2.getText()));
-
   }
 
   private TextMessage publish(String queue, String message) throws JMSException {
