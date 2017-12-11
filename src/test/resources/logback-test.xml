@@ -1,0 +1,18 @@
+<configuration scan="false" debug="false">
+
+    <property name="pattern.format"
+              value="%date{yyyy-MM-dd HH:mm:ss.SSS} | %level | %thread | %logger{36} | %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${pattern.format}</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="org.apache.activemq" level="warn"/>
+
+</configuration>

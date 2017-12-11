@@ -7,60 +7,64 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 ext.libraries = [
-    activemq_broker : "org.apache.activemq:activemq-broker:${activemqVersion}",
-    activemq_client : "org.apache.activemq:activemq-client:${activemqVersion}",
-    activemq_kahadb : "org.apache.activemq:activemq-kahadb-store:${activemqVersion}",
-    activemq_pool   : "org.apache.activemq:activemq-pool:${activemqVersion}",
-    guava           : "com.google.guava:guava:23.+",
-    hamcrest        : "org.hamcrest:java-hamcrest:2.+",
-    testng          : "org.testng:testng:6.+"
+        activemq_broker: "org.apache.activemq:activemq-broker:${activemqVersion}",
+        activemq_client: "org.apache.activemq:activemq-client:${activemqVersion}",
+        activemq_kahadb: "org.apache.activemq:activemq-kahadb-store:${activemqVersion}",
+        activemq_pool  : "org.apache.activemq:activemq-pool:${activemqVersion}",
+        awaitility     : 'com.jayway.awaitility:awaitility:1.+',
+        guava          : 'com.google.guava:guava:23.+',
+        hamcrest       : 'org.hamcrest:java-hamcrest:2.+',
+        logback_classic: 'ch.qos.logback:logback-classic:+',
+        testng         : 'org.testng:testng:6.+'
 ]
 
 defaultTasks 'test'
 
 allprojects {
-  apply plugin: 'java'
-  apply plugin: 'idea'
-  repositories {
-    mavenCentral()
-  }
-
-  idea {
-    module {
-      downloadSources=true
+    apply plugin: 'java'
+    apply plugin: 'idea'
+    repositories {
+        mavenCentral()
     }
-  }
+
+    idea {
+        module {
+            downloadSources = true
+        }
+    }
 }
 
 dependencies {
-  testCompile libraries.activemq_broker
-  testCompile libraries.activemq_client
-  testCompile libraries.activemq_kahadb
-  testCompile libraries.activemq_pool
-  testCompile libraries.guava
-  testCompile libraries.hamcrest
-  testCompile libraries.testng
+    testCompile libraries.activemq_broker
+    testCompile libraries.activemq_client
+    testCompile libraries.activemq_kahadb
+    testCompile libraries.activemq_pool
+    testCompile libraries.awaitility
+    testCompile libraries.guava
+    testCompile libraries.hamcrest
+    testCompile libraries.logback_classic
+    testCompile libraries.testng
 }
 
 test {
-  useTestNG() {
-    useDefaultListeners = true
-  }
+    useTestNG() {
+        useDefaultListeners = true
+    }
 
-  testLogging {
-    events "skipped", "failed"
-    showStandardStreams = true
-  }
+    testLogging {
+        events "skipped", "failed"
+        showStandardStreams = true
+    }
 }
 
 task wrapper(type: Wrapper) {
-  gradleVersion = '4.4'
-  jarFile = '.wrapper/gradle-wrapper.jar'
-  description = 'Builds the gradlew scripts'
+    gradleVersion = '4.4'
+    jarFile = '.wrapper/gradle-wrapper.jar'
+    description = 'Builds the gradlew scripts'
 }
 
 buildscript {
-  repositories {
-    mavenCentral()
-  }
+    repositories {
+        mavenCentral()
+    }
 }

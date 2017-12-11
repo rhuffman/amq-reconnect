@@ -29,3 +29,9 @@ hs_err_pid*
 *.iws
 *.iml
 
+# Build directories for Intellij and Gradle
+out
+build
+
+# ActiveMQ persistence store used by tests
+activemq-data
